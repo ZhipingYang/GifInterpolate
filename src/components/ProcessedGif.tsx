@@ -16,6 +16,8 @@ import {
 import { 
   CloudDownload as DownloadIcon, 
   Info as InfoIcon,
+  AccessTime as AccessTimeIcon,
+  Opacity as OpacityIcon,
   Warning as WarningIcon,
   AspectRatio as AspectRatioIcon,
   Photo as PhotoIcon,
@@ -40,11 +42,11 @@ interface ProcessedGifProps {
 
 const getAlgorithmLabel = (algo: InterpolationAlgorithm): string => {
   switch(algo) {
-    case 'linear': return '线性插值 (基础)';
-    case 'weighted': return '加权插值 (改进)';
-    case 'bilinear': return '双线性插值 (平滑)';
-    case 'motion': return '运动估计插值 (高级)';
-    case 'opticalflow': return '光流插值 (最佳质量)';
+    case 'linear': return 'Linear Interpolation (Basic)';
+    case 'weighted': return 'Weighted Interpolation (Improved)';
+    case 'bilinear': return 'Bilinear Interpolation (Smooth)';
+    case 'motion': return 'Motion Estimation (Advanced)';
+    case 'opticalflow': return 'Optical Flow (Best Quality)';
     default: return algo;
   }
 };
@@ -61,7 +63,9 @@ const ProcessedGif: React.FC<ProcessedGifProps> = ({
   const [interpolatedMetadata, setInterpolatedMetadata] = useState<GifMetadata>({});
 
   useEffect(() => {
+    // Clear old metadata and fetch new metadata when the generated GIF URL updates
     if (interpolatedGif) {
+      setInterpolatedMetadata({});
       fetchGifMetadata(interpolatedGif, setInterpolatedMetadata);
     }
   }, [interpolatedGif]);
@@ -71,46 +75,72 @@ const ProcessedGif: React.FC<ProcessedGifProps> = ({
   }
   
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px', justifyContent: 'center' }}>
-      <div style={{ flex: 1, minWidth: '300px', maxWidth: '500px' }}>
-        <Card elevation={3}>
-          <CardContent>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px', justifyContent: 'center', alignItems: 'stretch' }}>
+      <div style={{ flex: 2, minWidth: '300px' }}>
+        <Card elevation={3} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <CardContent sx={{ display: 'flex', flexDirection: 'column', flex: 1, p: 2 }}>
             <Typography variant="h6" component="h3" gutterBottom sx={{ fontWeight: 'medium', color: 'primary.main' }}>
-              插帧后的GIF {isProcessing && 
+              Interpolated GIF {isProcessing && 
                 <Chip 
                   size="small" 
-                  label="处理中..." 
+                  label="Processing..." 
                   color="primary" 
                   variant="outlined" 
                   sx={{ ml: 1, verticalAlign: 'middle' }} 
                 />
               }
             </Typography>
-            <Box sx={{ minHeight: '200px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {isProcessing && currentGif && (
                 <Box>
                   <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                    预览（处理中: {currentProgress}/{totalFrames}）
+                    Preview (Processing: {currentProgress}/{totalFrames})
                   </Typography>
                   <Box 
-                    component="img" 
-                    src={currentGif} 
-                    alt="Preview GIF" 
-                    key={`preview-${currentProgress}`}
-                    sx={{ maxWidth: '100%', maxHeight: '300px', borderRadius: 1 }}
-                  />
+                    sx={{
+                      border: '2px solid #e0e0e0',
+                      borderRadius: 1,
+                      p: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      position: 'relative',
+                      maxHeight: '500px'
+                    }}
+                  >
+                    <Box 
+                      component="img" 
+                      src={currentGif} 
+                      alt="Preview GIF" 
+                      key={`preview-${currentProgress}`}
+                      sx={{ width: '100%', height: 'auto', maxHeight: '480px', objectFit: 'contain', borderRadius: 1 }}
+                    />
+                  </Box>
                 </Box>
               )}
               
               {!isProcessing && interpolatedGif && (
                 <Box sx={{ width: '100%' }}>
                   <Box 
-                    component="img" 
-                    src={interpolatedGif} 
-                    alt="Interpolated GIF" 
-                    key={interpolatedGif}
-                    sx={{ maxWidth: '100%', maxHeight: '300px', borderRadius: 1 }}
-                  />
+                    sx={{
+                      border: '2px solid #e0e0e0',
+                      borderRadius: 1,
+                      p: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      position: 'relative',
+                      maxHeight: '500px'
+                    }}
+                  >
+                    <Box 
+                      component="img" 
+                      src={interpolatedGif} 
+                      alt="Interpolated GIF" 
+                      key={interpolatedGif}
+                      sx={{ width: '100%', height: 'auto', maxHeight: '480px', objectFit: 'contain', borderRadius: 1 }}
+                    />
+                  </Box>
                   <Box sx={{ mt: 2 }}>
                     <Button
                       variant="contained"
@@ -121,14 +151,14 @@ const ProcessedGif: React.FC<ProcessedGifProps> = ({
                       download={`interpolated_${algorithm}_${frameCount}x.gif`}
                       sx={{ textTransform: 'none' }}
                     >
-                      下载GIF
+                      Download GIF
                     </Button>
                     
                     {algorithm === 'opticalflow' && (
                       <Box sx={{ mt: 1 }}>
                         <Typography variant="caption" color="warning.main" sx={{ fontStyle: 'italic', display: 'flex', alignItems: 'center' }}>
                           <WarningIcon fontSize="small" sx={{ mr: 0.5 }} />
-                          提示: 如果结果不理想，可以尝试其他算法，如运动估计插值或双线性插值
+                          Tip: If the result is not ideal, try other algorithms such as motion estimation or bilinear interpolation
                         </Typography>
                       </Box>
                     )}
@@ -141,73 +171,105 @@ const ProcessedGif: React.FC<ProcessedGifProps> = ({
       </div>
       
       {interpolatedGif && (
-        <div style={{ flex: 1, minWidth: '300px', maxWidth: '500px' }}>
-          <Card elevation={3}>
+        <div style={{ flex: 1, minWidth: '300px' }}>
+          <Card elevation={3} sx={{ height: '100%' }}>
             <CardContent>
               <Typography variant="h6" component="h3" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
                 <InfoIcon sx={{ mr: 1 }} />
-                处理后GIF信息
+                Processed GIF Information
               </Typography>
               <Divider sx={{ mb: 2 }} />
               
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '16px' }}>
-                <div style={{ flex: '1 0 40%' }}>
+                <div style={{ flex: '1 0 100%' }}>
                   <Stack direction="row" spacing={1} alignItems="center">
                     <AspectRatioIcon color="primary" fontSize="small" />
-                    <Typography variant="body2" color="text.secondary">尺寸:</Typography>
+                    <Typography variant="body2" color="text.secondary">Dimensions:</Typography>
                     <Typography variant="body1">
-                      {interpolatedMetadata.width || '?'} × {interpolatedMetadata.height || '?'} 像素
+                      {interpolatedMetadata.width || '?'} × {interpolatedMetadata.height || '?'} pixels
                     </Typography>
                   </Stack>
                 </div>
                 
-                <div style={{ flex: '1 0 40%' }}>
+                <div style={{ flex: '1 0 100%' }}>
                   <Stack direction="row" spacing={1} alignItems="center">
                     <MemoryIcon color="primary" fontSize="small" />
-                    <Typography variant="body2" color="text.secondary">文件大小:</Typography>
+                    <Typography variant="body2" color="text.secondary">File Size:</Typography>
                     <Typography variant="body1">
-                      {interpolatedMetadata.size || '未知'}
+                      {interpolatedMetadata.size || 'Unknown'}
                     </Typography>
                   </Stack>
                 </div>
-              
-                <div style={{ flex: '1 0 40%' }}>
+                
+                <div style={{ flex: '1 0 100%' }}>
                   <Stack direction="row" spacing={1} alignItems="center">
                     <PhotoIcon color="primary" fontSize="small" />
-                    <Typography variant="body2" color="text.secondary">帧数:</Typography>
+                    <Typography variant="body2" color="text.secondary">Frames:</Typography>
                     <Typography variant="body1">
-                      {interpolatedMetadata.frameCount || '未知'} 帧
+                      {interpolatedMetadata.frameCount || 'Unknown'} frames
                     </Typography>
                   </Stack>
                 </div>
                 
-                <div style={{ flex: '1 0 40%' }}>
+                <div style={{ flex: '1 0 100%' }}>
                   <Stack direction="row" spacing={1} alignItems="center">
                     <SpeedIcon color="primary" fontSize="small" />
-                    <Typography variant="body2" color="text.secondary">帧率:</Typography>
+                    <Typography variant="body2" color="text.secondary">Frame Rate:</Typography>
                     <Typography variant="body1">
-                      {interpolatedMetadata.avgDelay ? (100 / interpolatedMetadata.avgDelay).toFixed(2) : '未知'} fps
+                      {interpolatedMetadata.avgDelay ? (100 / interpolatedMetadata.avgDelay).toFixed(2) : 'Unknown'} fps
                     </Typography>
                   </Stack>
                 </div>
                 
-                <div style={{ flex: '1 0 40%' }}>
+                <div style={{ flex: '1 0 100%' }}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <AccessTimeIcon color="primary" fontSize="small" />
+                    <Typography variant="body2" color="text.secondary">Duration:</Typography>
+                    <Typography variant="body1">
+                      {interpolatedMetadata.duration != null
+                        ? `${interpolatedMetadata.duration.toFixed(2)} s`
+                        : 'Unknown'}
+                    </Typography>
+                  </Stack>
+                </div>
+                
+                <div style={{ flex: '1 0 100%' }}>
                   <Stack direction="row" spacing={1} alignItems="center">
                     <LayersIcon color="primary" fontSize="small" />
-                    <Typography variant="body2" color="text.secondary">播放方式:</Typography>
+                    <Typography variant="body2" color="text.secondary">Playback Mode:</Typography>
                     <Typography variant="body1" sx={{ fontSize: '0.9rem' }}>
-                      {interpolatedMetadata.playbackMode || '多帧动画，混合模式'}
+                      {interpolatedMetadata.playbackMode || 'Multi-frame animation, blend mode'}
                     </Typography>
                   </Stack>
                 </div>
                 
-                <div style={{ flex: '1 0 40%' }}>
+                <div style={{ flex: '1 0 100%' }}>
                   <Stack direction="row" spacing={1} alignItems="center">
                     <LoopIcon color="primary" fontSize="small" />
-                    <Typography variant="body2" color="text.secondary">循环次数:</Typography>
+                    <Typography variant="body2" color="text.secondary">Loop Count:</Typography>
                     <Typography variant="body1">
-                      {interpolatedMetadata.loopCount === Infinity ? '无限循环' : 
-                        interpolatedMetadata.loopCount ? `${interpolatedMetadata.loopCount} 次` : '1 次'}
+                      {interpolatedMetadata.loopCount === Infinity ? 'Infinite loop' : 
+                        interpolatedMetadata.loopCount ? `${interpolatedMetadata.loopCount} times` : '1 time'}
+                    </Typography>
+                  </Stack>
+                </div>
+                
+                <div style={{ flex: '1 0 100%' }}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <PaletteIcon color="primary" fontSize="small" />
+                    <Typography variant="body2" color="text.secondary">Color Depth:</Typography>
+                    <Typography variant="body1">
+                      {interpolatedMetadata.colorDepth ? `${interpolatedMetadata.colorDepth} bit` : 'Unknown'}
+                    </Typography>
+                  </Stack>
+                </div>
+                
+                <div style={{ flex: '1 0 100%' }}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <OpacityIcon color="primary" fontSize="small" />
+                    <Typography variant="body2" color="text.secondary">Transparency:</Typography>
+                    <Typography variant="body1">
+                      {interpolatedMetadata.hasTransparency ? 'Supports transparency' : 'No transparency'}
                     </Typography>
                   </Stack>
                 </div>
@@ -222,7 +284,7 @@ const ProcessedGif: React.FC<ProcessedGifProps> = ({
                   sx={{ mb: 1 }}
                 />
                 <Chip 
-                  label={`每对原始帧间插入 ${frameCount} 帧`} 
+                  label={`Inserted ${frameCount} frames between each original frame pair`} 
                   color="secondary" 
                   variant="outlined"
                   size="small"
@@ -232,24 +294,24 @@ const ProcessedGif: React.FC<ProcessedGifProps> = ({
               
               <Paper variant="outlined" sx={{ p: 2, mt: 1, bgcolor: 'background.default' }}>
                 <Typography variant="subtitle2" gutterBottom>
-                  可能的应用:
+                  Potential Applications:
                 </Typography>
                 <List dense disablePadding>
                   <ListItem disableGutters>
                     <ListItemText 
-                      primary="使运动更加平滑"
+                      primary="Smoother motion"
                       primaryTypographyProps={{ fontSize: '13px' }}
                     />
                   </ListItem>
                   <ListItem disableGutters>
                     <ListItemText 
-                      primary="增加GIF播放时长"
+                      primary="Increased GIF playback duration"
                       primaryTypographyProps={{ fontSize: '13px' }}
                     />
                   </ListItem>
                   <ListItem disableGutters>
                     <ListItemText 
-                      primary="减少闪烁效果"
+                      primary="Reduced flickering effects"
                       primaryTypographyProps={{ fontSize: '13px' }}
                     />
                   </ListItem>

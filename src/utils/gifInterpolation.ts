@@ -200,8 +200,14 @@ export const createLinearInterpolatedFrames = async (
         newFrame.data[i + 2] = data2[i + 2];
         newFrame.data[i + 3] = Math.round(data2[i + 3] * ratio);
       } else if (data2[i + 3] === 0) {
+        newFrame.data[i]     = data1[i];
+        newFrame.data[i + 1] = data1[i + 1];
+        newFrame.data[i + 2] = data1[i + 2];
         newFrame.data[i + 3] = Math.round(data1[i + 3] * (1 - ratio));
       } else {
+        newFrame.data[i]     = Math.round(data1[i]     * (1 - ratio) + data2[i]     * ratio);
+        newFrame.data[i + 1] = Math.round(data1[i + 1] * (1 - ratio) + data2[i + 1] * ratio);
+        newFrame.data[i + 2] = Math.round(data1[i + 2] * (1 - ratio) + data2[i + 2] * ratio);
         newFrame.data[i + 3] = Math.round(data1[i + 3] * (1 - ratio) + data2[i + 3] * ratio);
       }
     }
@@ -409,6 +415,9 @@ export const createInterpolatedFrames = async (
               newFrame.data[i + 3] = Math.round(data1[i + 3] * (1 - ratio));
             } else {
               // 两帧都不透明
+              newFrame.data[i]     = Math.round(data1[i]     * (1 - ratio) + data2[i]     * ratio);
+              newFrame.data[i + 1] = Math.round(data1[i + 1] * (1 - ratio) + data2[i + 1] * ratio);
+              newFrame.data[i + 2] = Math.round(data1[i + 2] * (1 - ratio) + data2[i + 2] * ratio);
               newFrame.data[i + 3] = Math.round(data1[i + 3] * (1 - ratio) + data2[i + 3] * ratio);
             }
           }

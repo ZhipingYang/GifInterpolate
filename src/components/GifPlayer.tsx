@@ -8,7 +8,7 @@ import {
   drawFrameOnCanvas,
   adjustFrameTiming
 } from '../utils/gifInterpolation';
-import { Box, Container, Paper } from '@mui/material';
+import { Box, Container, Paper, SelectChangeEvent } from '@mui/material';
 import OriginalGif from './OriginalGif';
 import ProcessedGif from './ProcessedGif';
 
@@ -35,11 +35,16 @@ const GifPlayer: React.FC = () => {
   const [totalFrames, setTotalFrames] = useState(0);
   const [currentProgress, setCurrentProgress] = useState(0);
   const [algorithm, setAlgorithm] = useState<InterpolationAlgorithm>('linear');
-  const [frameCount, setFrameCount] = useState<number>(1); // 每两帧之间插入的帧数
-  const [currentGif, setCurrentGif] = useState<string | null>(null); // 用于渐进式显示
-  const [errorMessage, setErrorMessage] = useState<string | null>(null); // 用于显示错误信息
-  const [processingStage, setProcessingStage] = useState<string>(''); // 当前处理阶段
-  const [currentFile, setCurrentFile] = useState<File | null>(null); // 存储当前选择的文件，用于延迟处理
+  const [frameCount, setFrameCount] = useState<number>(1); // Number of frames to insert between each pair
+  const [currentGif, setCurrentGif] = useState<string | null>(null); // For progressive display
+  const [errorMessage, setErrorMessage] = useState<string | null>(null); // For displaying error messages
+  const [processingStage, setProcessingStage] = useState<string>(''); // Current processing stage
+  const [currentFile, setCurrentFile] = useState<File | null>(null); // Store the currently selected file for delayed processing
+  
+  // Add GIF playback configuration state
+  const [loopCount, setLoopCount] = useState<number | null>(0); // 0 means infinite loop
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1); // 1 is normal speed
+  const [disposalMethod, setDisposalMethod] = useState<number>(2); // Default to restore to background color mode
   
   // 确认对话框状态
   const [showConfirm, setShowConfirm] = useState(false);
@@ -94,31 +99,31 @@ const GifPlayer: React.FC = () => {
       setOriginalGif(url);
     } catch (error: any) {
       console.error('Error handling file:', error);
-      setErrorMessage(`文件处理错误: ${error.message}`);
+      setErrorMessage(`File processing error: ${error.message}`);
     }
   };
 
-  // 开始GIF处理的新函数
+  // Start GIF processing
   const startGifProcessing = async () => {
     if (!currentFile) {
-      alert('请先上传一个GIF文件');
+      alert('Please upload a GIF file first');
       return;
     }
 
     try {
       setIsProcessing(true);
-      setProcessingStage('正在读取GIF文件...');
+      setProcessingStage('Reading GIF file...');
       
-      // 检查文件大小
-      if (currentFile.size > 20 * 1024 * 1024) { // 超过20MB
+      // Check file size
+      if (currentFile.size > 20 * 1024 * 1024) { // More than 20MB
         showConfirmDialog(
-          '文件大于20MB，处理可能会非常慢并消耗大量内存。确定要继续吗？',
+          'File is larger than 20MB. Processing may be very slow and consume a lot of memory. Do you want to continue?',
           async () => {
-            // 继续处理
+            // Continue processing
             await continueProcessing(currentFile);
           },
           () => {
-            // 取消处理
+            // Cancel processing
             setIsProcessing(false);
           }
         );
@@ -128,8 +133,8 @@ const GifPlayer: React.FC = () => {
       await continueProcessing(currentFile);
     } catch (error: any) {
       console.error('Error processing GIF:', error);
-      setErrorMessage(`GIF处理错误: ${error.message}`);
-      alert('GIF处理错误，请尝试其他文件');
+      setErrorMessage(`GIF processing error: ${error.message}`);
+      alert('Error processing GIF. Please try another file.');
     } finally {
       setProcessingStage('');
       if (isProcessing) {
@@ -138,38 +143,38 @@ const GifPlayer: React.FC = () => {
     }
   };
   
-  // 继续处理文件
+  // Continue processing file
   const continueProcessing = async (file: File) => {
     try {
-      // 读取原始GIF文件
+      // Read original GIF file
       const arrayBuffer = await file.arrayBuffer();
       const gifData = parseGIF(arrayBuffer);
       const frames = decompressFrames(gifData, true);
       
-      // 检查帧数
-      if (frames.length > 100) { // 超过100帧
+      // Check frame count
+      if (frames.length > 100) { // More than 100 frames
         showConfirmDialog(
-          `这个GIF包含${frames.length}帧，处理时间可能会很长。是否继续？`,
+          `This GIF contains ${frames.length} frames. Processing may take a long time. Do you want to continue?`,
           async () => {
-            // 继续处理GIF
-            setProcessingStage('正在处理GIF...');
+            // Continue processing the GIF
+            setProcessingStage('Processing GIF...');
             await processGif(frames);
           },
           () => {
-            // 取消处理
+            // Cancel processing
             setIsProcessing(false);
           }
         );
         return;
       }
       
-      setProcessingStage('正在处理GIF...');
+      setProcessingStage('Processing GIF...');
       
-      // 开始处理GIF
+      // Start processing the GIF
       await processGif(frames);
     } catch (error: any) {
       console.error('Error in continueProcessing:', error);
-      setErrorMessage(`GIF处理错误: ${error.message}`);
+      setErrorMessage(`GIF processing error: ${error.message}`);
       setIsProcessing(false);
     }
   };
@@ -190,15 +195,15 @@ const GifPlayer: React.FC = () => {
       const totalFrames = gifFrames.length;
       
       if (totalPixels > 1000000 || (totalPixels > 500000 && totalFrames > 20)) {
-        // 使用自定义确认对话框代替confirm
+        // Use custom confirmation dialog instead of confirm
         showConfirmDialog(
-          `这个GIF尺寸较大 (${width}x${height}，${totalFrames}帧)，处理可能会消耗大量内存并导致浏览器变慢。是否继续？`,
+          `This GIF is quite large (${width}x${height}, ${totalFrames} frames). Processing may consume a lot of memory and slow down your browser. Do you want to continue?`,
           () => {
-            // 继续处理
+            // Continue processing
             continueGifProcessing(gifFrames, width, height, totalFrames);
           },
           () => {
-            // 取消处理
+            // Cancel processing
             setIsProcessing(false);
           }
         );
@@ -208,7 +213,7 @@ const GifPlayer: React.FC = () => {
       await continueGifProcessing(gifFrames, width, height, totalFrames);
     } catch (error: any) {
       console.error('Error in GIF processing:', error);
-      alert(`GIF处理错误: ${error.message}`);
+      alert(`GIF processing error: ${error.message}`);
       setIsProcessing(false);
     }
   };
@@ -394,7 +399,7 @@ const GifPlayer: React.FC = () => {
                 }
               } catch (error: any) {
                 console.error('Error during frame interpolation:', error);
-                alert(`插帧过程中出错: ${error.message}。将跳过复杂帧的插值。`);
+                alert(`Interpolation error: ${error.message}. Skipping complex frame interpolation.`);
                 
                 // 出错时跳过插帧，直接进入下一帧
                 continue;
@@ -448,7 +453,7 @@ const GifPlayer: React.FC = () => {
       await createFinalGif(processedFrames, width, height);
     } catch (error: any) {
       console.error('Error in GIF processing:', error);
-      alert(`GIF处理错误: ${error.message}`);
+      alert(`GIF processing error: ${error.message}`);
       setIsProcessing(false);
     }
   };
@@ -521,7 +526,8 @@ const GifPlayer: React.FC = () => {
       height,
       workerScript: '/static/js/gif.worker.js',
       transparent: 'rgba(0,0,0,0)',
-      background: 'rgba(0,0,0,0)'
+      background: 'rgba(0,0,0,0)',
+      repeat: loopCount === null ? 0 : loopCount, // 应用循环次数设置，null转为0表示无限循环
     });
     
     // 创建渲染画布
@@ -549,11 +555,14 @@ const GifPlayer: React.FC = () => {
         const imgData = new ImageData(frame.data, width, height);
         renderCtx.putImageData(imgData, 0, 0);
         
+        // 计算应用播放速度后的延迟时间
+        const adjustedDelay = Math.round(frame.delay / playbackSpeed);
+        
         // 添加到GIF
         gif.addFrame(renderCanvas, { 
-          delay: frame.delay,
+          delay: adjustedDelay,
           copy: true,
-          dispose: 2
+          dispose: disposalMethod
         } as any);
         
         // 每帧更新进度
@@ -595,7 +604,7 @@ const GifPlayer: React.FC = () => {
     const newAlgorithm = e.target.value as InterpolationAlgorithm;
     
     if (newAlgorithm === 'opticalflow') {
-      alert('光流算法计算量大，处理大型GIF时可能会导致浏览器卡顿或崩溃。建议先在小尺寸GIF上测试。');
+      alert('Optical flow algorithm is computationally intensive and may cause browser lag or crashes when processing large GIFs. We recommend testing on small GIFs first.');
     }
     
     setAlgorithm(newAlgorithm);
@@ -608,14 +617,32 @@ const GifPlayer: React.FC = () => {
     }
   };
   
+  // 添加播放配置处理函数
+  const handleLoopCountChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const count = parseInt(e.target.value);
+    setLoopCount(count); // 使用数字，在createFinalGif中处理类型转换
+  };
+  
+  const handlePlaybackSpeedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const speed = parseFloat(e.target.value);
+    if (!isNaN(speed) && speed >= 0.25 && speed <= 2) {
+      setPlaybackSpeed(speed);
+    }
+  };
+  
+  const handleDisposalMethodChange = (e: SelectChangeEvent<number>) => {
+    const method = e.target.value as number;
+    setDisposalMethod(method);
+  };
+  
   // 取消当前处理
   const handleCancelProcessing = () => {
     showConfirmDialog(
-      '确定要取消当前处理吗？',
+      'Are you sure you want to cancel the current processing?',
       () => {
         setIsProcessing(false);
         setCurrentGif(null);
-        setProcessingStage('取消中...');
+        setProcessingStage('Canceling...');
       },
       () => {
         // 不做任何事情，继续处理
@@ -649,9 +676,15 @@ const GifPlayer: React.FC = () => {
             frameCount={frameCount}
             isProcessing={isProcessing}
             hasOriginalGif={!!originalGif}
+            loopCount={loopCount}
+            playbackSpeed={playbackSpeed}
+            disposalMethod={disposalMethod}
             onAlgorithmChange={handleAlgorithmChange}
             onFrameCountChange={handleFrameCountChange}
+            onLoopCountChange={handleLoopCountChange}
+            onPlaybackSpeedChange={handlePlaybackSpeedChange}
             onStartProcessing={startGifProcessing}
+            onDisposalMethodChange={handleDisposalMethodChange}
           />
         </Box>
         

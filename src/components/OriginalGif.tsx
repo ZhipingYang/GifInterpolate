@@ -14,6 +14,8 @@ import {
 } from '@mui/material';
 import { 
   Info as InfoIcon,
+  AccessTime as AccessTimeIcon,
+  Opacity as OpacityIcon,
   Warning as WarningIcon,
   AspectRatio as AspectRatioIcon,
   Photo as PhotoIcon,
@@ -83,7 +85,7 @@ const OriginalGif: React.FC<OriginalGifProps> = ({
           <Card elevation={3}>
             <CardContent>
               <Typography variant="h6" component="h3" gutterBottom sx={{ fontWeight: 'medium', color: 'primary.main' }}>
-                原始GIF
+                Original GIF
               </Typography>
               <Box
                 sx={{
@@ -106,7 +108,7 @@ const OriginalGif: React.FC<OriginalGifProps> = ({
               >
                 <Box sx={{ textAlign: 'center', color: '#666' }}>
                   <PhotoIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
-                  <Typography>点击或拖拽GIF文件到此处</Typography>
+                  <Typography>Click or drag a GIF file here</Typography>
                 </Box>
                 <input
                   ref={fileInputRef}
@@ -126,35 +128,33 @@ const OriginalGif: React.FC<OriginalGifProps> = ({
   }
 
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px', marginBottom: '32px', justifyContent: 'center' }}>
-      <div style={{ flex: '1 0 300px', maxWidth: '500px' }}>
-        <Card elevation={3}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px', marginBottom: '32px', justifyContent: 'center', alignItems: 'stretch' }}>
+      <div style={{ flex: 2, minWidth: '300px' }}>
+        <Card elevation={3} sx={{ height: '100%' }}>
           <CardContent>
             <Typography variant="h6" component="h3" gutterBottom sx={{ fontWeight: 'medium', color: 'primary.main' }}>
-              原始GIF
+              Original GIF
             </Typography>
             <Box
               sx={{
                 border: '2px solid #e0e0e0',
                 borderRadius: 1,
                 p: 1,
-                minHeight: '200px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                cursor: 'pointer',
                 position: 'relative',
-                '&:hover .upload-overlay': {
-                  opacity: 1
-                }
+                '&:hover .upload-overlay': { opacity: 1 },
+                maxHeight: '500px'
               }}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={handleClick}
             >
-              <Box component="img" src={originalGif} alt="Original GIF" 
-                sx={{ maxWidth: '100%', maxHeight: '300px', borderRadius: 1 }} />
+              <Box component="img" src={originalGif} alt="Original GIF"
+                sx={{ width: '100%', height: 'auto', maxHeight: '480px', objectFit: 'contain', borderRadius: 1 }}
+              />
               <input
                 ref={fileInputRef}
                 type="file"
@@ -181,121 +181,95 @@ const OriginalGif: React.FC<OriginalGifProps> = ({
                   transition: 'opacity 0.3s'
                 }}
               >
-                <Typography>点击或拖拽更换GIF</Typography>
+                <Typography>Click or drag to change GIF</Typography>
               </Box>
             </Box>
           </CardContent>
         </Card>
       </div>
 
-      <div style={{ flex: '1 0 300px', maxWidth: '500px' }}>
-        <Card elevation={3}>
-          <CardContent>
+      <div style={{ flex: 1, minWidth: '300px' }}>
+        <Card elevation={3} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <CardContent sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 2 }}>
             <Typography variant="h6" component="h3" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-              <InfoIcon sx={{ mr: 1 }} />
-              GIF 信息
+              <InfoIcon sx={{ mr: 1 }} /> GIF Information
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '16px' }}>
-              <div style={{ flex: '1 0 40%' }}>
+              <div style={{ flex: '1 0 100%' }}>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <AspectRatioIcon color="primary" fontSize="small" />
-                  <Typography variant="body2" color="text.secondary">尺寸:</Typography>
-                  <Typography variant="body1">
-                    {originalMetadata.width || '?'} × {originalMetadata.height || '?'} 像素
-                  </Typography>
+                  <Typography variant="body2" color="text.secondary">Dimensions:</Typography>
+                  <Typography variant="body1">{originalMetadata.width || '?'} × {originalMetadata.height || '?'} pixels</Typography>
                 </Stack>
               </div>
-              
-              <div style={{ flex: '1 0 40%' }}>
+              <div style={{ flex: '1 0 100%' }}>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <MemoryIcon color="primary" fontSize="small" />
-                  <Typography variant="body2" color="text.secondary">文件大小:</Typography>
-                  <Typography variant="body1">
-                    {originalMetadata.size || '未知'}
-                  </Typography>
+                  <Typography variant="body2" color="text.secondary">File Size:</Typography>
+                  <Typography variant="body1">{originalMetadata.size || 'Unknown'}</Typography>
                 </Stack>
               </div>
-            
-              <div style={{ flex: '1 0 40%' }}>
+              <div style={{ flex: '1 0 100%' }}>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <PhotoIcon color="primary" fontSize="small" />
-                  <Typography variant="body2" color="text.secondary">帧数:</Typography>
-                  <Typography variant="body1">
-                    {originalMetadata.frameCount || totalFrames > 0 ? totalFrames : '未知'} 帧
-                  </Typography>
+                  <Typography variant="body2" color="text.secondary">Frames:</Typography>
+                  <Typography variant="body1">{originalMetadata.frameCount != null ? originalMetadata.frameCount : 'Unknown'} frames</Typography>
                 </Stack>
               </div>
-              
-              <div style={{ flex: '1 0 40%' }}>
+              <div style={{ flex: '1 0 100%' }}>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <SpeedIcon color="primary" fontSize="small" />
-                  <Typography variant="body2" color="text.secondary">帧率:</Typography>
-                  <Typography variant="body1">
-                    {originalMetadata.avgDelay ? (100 / originalMetadata.avgDelay).toFixed(2) : '未知'} fps
-                  </Typography>
+                  <Typography variant="body2" color="text.secondary">Frame Rate:</Typography>
+                  <Typography variant="body1">{originalMetadata.avgDelay != null ? (100/originalMetadata.avgDelay).toFixed(2) : 'Unknown'} fps</Typography>
                 </Stack>
               </div>
-              
-              <div style={{ flex: '1 0 40%' }}>
+              <div style={{ flex: '1 0 100%' }}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <AccessTimeIcon color="primary" fontSize="small" />
+                  <Typography variant="body2" color="text.secondary">Duration:</Typography>
+                  <Typography variant="body1">{originalMetadata.duration != null ? `${originalMetadata.duration.toFixed(2)} s` : 'Unknown'}</Typography>
+                </Stack>
+              </div>
+              <div style={{ flex: '1 0 100%' }}>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <LayersIcon color="primary" fontSize="small" />
-                  <Typography variant="body2" color="text.secondary">播放方式:</Typography>
-                  <Typography variant="body1" sx={{ fontSize: '0.9rem' }}>
-                    {originalMetadata.playbackMode || '多帧动画，混合模式'}
-                  </Typography>
+                  <Typography variant="body2" color="text.secondary">Playback Mode:</Typography>
+                  <Typography variant="body1" sx={{ fontSize: '0.9rem' }}>{originalMetadata.playbackMode || 'Multi-frame animation, blend mode'}</Typography>
                 </Stack>
               </div>
-              
-              <div style={{ flex: '1 0 40%' }}>
+              <div style={{ flex: '1 0 100%' }}>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <LoopIcon color="primary" fontSize="small" />
-                  <Typography variant="body2" color="text.secondary">循环次数:</Typography>
-                  <Typography variant="body1">
-                    {originalMetadata.loopCount === Infinity ? '无限循环' : 
-                      originalMetadata.loopCount ? `${originalMetadata.loopCount} 次` : '1 次'}
-                  </Typography>
+                  <Typography variant="body2" color="text.secondary">Loop Count:</Typography>
+                  <Typography variant="body1">{originalMetadata.loopCount === Infinity ? 'Infinite loop' : originalMetadata.loopCount ? `${originalMetadata.loopCount} times` : '1 time'}</Typography>
                 </Stack>
               </div>
-            
-              <div style={{ flex: '1 0 40%' }}>
+              <div style={{ flex: '1 0 100%' }}>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <PaletteIcon color="primary" fontSize="small" />
-                  <Typography variant="body2" color="text.secondary">颜色深度:</Typography>
-                  <Typography variant="body1">
-                    {originalMetadata.colorDepth ? `${originalMetadata.colorDepth} 位` : '未知'}
-                  </Typography>
+                  <Typography variant="body2" color="text.secondary">Color Depth:</Typography>
+                  <Typography variant="body1">{originalMetadata.colorDepth ? `${originalMetadata.colorDepth} bit` : 'Unknown'}</Typography>
                 </Stack>
               </div>
-              
-              <div style={{ flex: '1 0 40%' }}>
+              <div style={{ flex: '1 0 100%' }}>
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <Typography variant="body2" color="text.secondary">透明处理:</Typography>
-                  <Typography variant="body1">
-                    {originalMetadata.hasTransparency ? '支持透明' : '不支持透明'}
-                  </Typography>
+                  <OpacityIcon color="primary" fontSize="small" />
+                  <Typography variant="body2" color="text.secondary">Transparency:</Typography>
+                  <Typography variant="body1">{originalMetadata.hasTransparency ? 'Supports transparency' : 'No transparency'}</Typography>
                 </Stack>
               </div>
             </div>
-            
             <Paper variant="outlined" sx={{ p: 2, mt: 1, bgcolor: 'background.default' }}>
               <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-                <WarningIcon fontSize="small" color="warning" sx={{ mr: 1 }} />
-                GIF 处理提示
+                <WarningIcon fontSize="small" color="warning" sx={{ mr: 1 }} /> GIF Processing Tips
               </Typography>
               <List dense disablePadding>
                 <ListItem disableGutters>
-                  <ListItemText 
-                    primary="对于复杂GIF，使用运动估计插值算法效果更好"
-                    primaryTypographyProps={{ fontSize: '13px' }}
-                  />
+                  <ListItemText primary="For complex GIFs, motion estimation interpolation algorithm works better" primaryTypographyProps={{ fontSize: '13px' }} />
                 </ListItem>
                 <ListItem disableGutters>
-                  <ListItemText 
-                    primary={`${originalMetadata.hasTransparency ? '该GIF包含透明区域' : '该GIF不包含透明区域'}，${originalMetadata.hasTransparency ? '处理可能会影响透明度' : ''}`}
-                    primaryTypographyProps={{ fontSize: '13px' }}
-                  />
+                  <ListItemText primary={`${originalMetadata.hasTransparency ? 'This GIF contains transparent areas' : 'This GIF has no transparent areas'}${originalMetadata.hasTransparency ? ', processing may affect transparency' : ''}`} primaryTypographyProps={{ fontSize: '13px' }} />
                 </ListItem>
               </List>
             </Paper>

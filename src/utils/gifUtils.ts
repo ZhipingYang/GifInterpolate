@@ -1,4 +1,5 @@
 import React from 'react';
+import { parseGIF, decompressFrames } from 'gifuct-js';
 
 export interface GifMetadata {
   width?: number;
@@ -165,11 +166,11 @@ export const formatFileSize = (bytes: number): string => {
 
 export const getDisposalMethodDescription = (method?: number): string => {
   switch(method) {
-    case 0: return '未指定';
-    case 1: return '不处理 (保留)';
-    case 2: return '还原背景';
-    case 3: return '还原上一帧';
-    default: return '未知';
+    case 0: return 'Not specified';
+    case 1: return 'No disposal (Keep)';
+    case 2: return 'Restore background';
+    case 3: return 'Restore previous frame';
+    default: return 'Unknown';
   }
 };
 
@@ -178,63 +179,72 @@ export const fetchGifMetadata = async (gifUrl: string, setMetadata: React.Dispat
     const response = await fetch(gifUrl);
     const blob = await response.blob();
     const size = formatFileSize(blob.size);
-    
-    // 基本尺寸信息
+
+    // 更新文件大小
+    setMetadata(prev => ({ ...prev, size }));
+
+    // 获取基本尺寸
     const img = new Image();
     img.onload = () => {
-      setMetadata(prev => ({
-        ...prev,
-        width: img.width,
-        height: img.height,
-        size
-      }));
+      setMetadata(prev => ({ ...prev, width: img.width, height: img.height }));
     };
     img.src = gifUrl;
-    
-    // 使用 gifuct-js 方法提取更详细的 GIF 信息
-    // 这里只是一个基础实现，建议使用实际的 GIF 解析库
+
+    // 使用 gifuct-js 精确解析帧
     const arrayBuffer = await blob.arrayBuffer();
-    const frameData = parseGifFrameData(arrayBuffer);
-    
-    if (frameData) {
-      const { 
-        frameCount, 
-        avgDelay, 
-        hasTransparency, 
-        disposalMethods, 
-        loopCount, 
-        colorDepth, 
-        backgroundColorIndex 
-      } = frameData;
-      
-      // 根据帧数和处理方式确定播放模式
-      let playbackMode = "单帧静态图像";
-      if (frameCount > 1) {
-        // 检查是否所有帧都使用相同的处理方式
-        const uniqueDisposalMethods = Array.from(new Set(disposalMethods || []));
-        if (uniqueDisposalMethods.includes(2)) {
-          playbackMode = "多帧动画，背景恢复模式";
-        } else if (uniqueDisposalMethods.includes(1)) {
-          playbackMode = "多帧动画，混合模式";
-        } else if (uniqueDisposalMethods.includes(3)) {
-          playbackMode = "多帧动画，上一帧恢复模式";
-        } else {
-          playbackMode = "多帧动画，未指定模式";
-        }
-      }
-      
-      setMetadata(prev => ({
-        ...prev,
-        frameCount,
-        avgDelay,
-        hasTransparency,
-        disposalMethods,
-        loopCount,
-        colorDepth,
-        backgroundColorIndex,
-        playbackMode
-      }));
+    const gif = parseGIF(arrayBuffer);
+    const frames = decompressFrames(gif, true);
+    const accurateFrameCount = frames.length;
+    // 计算基于 decompressFrames 的平均延迟（单位：1/100秒）
+    const totalDelay = frames.reduce((sum, f) => sum + (f.delay || 0), 0);
+    const fallbackAvgDelay = accurateFrameCount > 0 ? totalDelay / accurateFrameCount : 0;
+    // 使用 parseGifFrameData 提取的 avgDelay（如果可用），否则使用 fallback
+    const simpleDataForDelay = parseGifFrameData(arrayBuffer);
+    const avgDelay = simpleDataForDelay?.avgDelay ?? fallbackAvgDelay;
+    // 计算一次循环的总时长（秒）：使用解析出的 avgDelay 和准确帧数
+    const duration = accurateFrameCount > 0 ? (avgDelay * accurateFrameCount) / 100 : 0;
+
+    // 使用 parseGifFrameData 提取循环等信息作为补充
+    const simpleData = simpleDataForDelay; // reuse parsed data
+    const loopCount = simpleData?.loopCount ?? 1;
+    const colorDepth = simpleData?.colorDepth;
+    const backgroundColorIndex = simpleData?.backgroundColorIndex;
+
+    // 提取每帧的处理方式，若不存在则回退到 simpleData 中的首个值
+    const disposalMethods = frames.map(f =>
+      f.disposalType != null
+        ? f.disposalType
+        : simpleData?.disposalMethods?.[0] ?? 0
+    );
+
+    // 检查透明度
+    const hasTransparency = frames.some(f =>
+      (f.patch as Uint8ClampedArray).some((v, idx) => (idx + 1) % 4 === 0 && v < 255)
+    );
+
+    // 确定播放模式
+    let playbackMode = 'Single-frame static image';
+    if (accurateFrameCount > 1) {
+      const uniqueD = Array.from(new Set(disposalMethods));
+      if (uniqueD.includes(2)) playbackMode = 'Multi-frame animation, background restore mode';
+      else if (uniqueD.includes(1)) playbackMode = 'Multi-frame animation, blend mode';
+      else if (uniqueD.includes(3)) playbackMode = 'Multi-frame animation, previous frame restore mode';
+      else playbackMode = 'Multi-frame animation, unspecified mode';
     }
+
+    // 更新完整元数据
+    setMetadata(prev => ({
+      ...prev,
+      frameCount: accurateFrameCount,
+      avgDelay,
+      duration,
+      hasTransparency,
+      disposalMethods,
+      loopCount,
+      colorDepth,
+      backgroundColorIndex,
+      playbackMode
+    }));
   } catch (error) {
     console.error('Error fetching GIF metadata:', error);
   }

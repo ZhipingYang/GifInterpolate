@@ -31,7 +31,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     >
       <DialogTitle id="alert-dialog-title" sx={{ display: 'flex', alignItems: 'center' }}>
         <WarningIcon color="warning" sx={{ mr: 1 }} />
-        确认
+        Confirm
       </DialogTitle>
       <DialogContent>
         <DialogContentText id="alert-dialog-description">
@@ -40,10 +40,10 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       </DialogContent>
       <DialogActions>
         <Button onClick={onCancel} color="primary">
-          取消
+          Cancel
         </Button>
         <Button onClick={onConfirm} color="primary" variant="contained" autoFocus>
-          确定
+          Confirm
         </Button>
       </DialogActions>
     </Dialog>

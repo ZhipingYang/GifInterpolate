@@ -1,128 +1,146 @@
-# GIF 插帧处理器 (GIF Frame Interpolator)
+# GIF Frame Interpolator
 
-一个基于 React 和 Material UI 构建的 GIF 插帧工具，通过先进的图像插值算法使 GIF 动画更加流畅。
+A GIF frame interpolation tool built with React and Material UI, using advanced image interpolation algorithms to make GIF animations smoother.
 
-![GIF插帧处理器](screenshots/app-preview.png)
+![GIF Frame Interpolator](screenshots/app-preview.png)
 
-## 功能特点
+## Features
 
-- 🖼️ 上传和处理任何 GIF 文件
-- 🧠 支持多种插帧算法：
-  - 线性插值 (快速)
-  - 加权插值 (平衡)
-  - 双线性插值 (平滑)
-  - 运动估计插值 (较好)
-  - 光流插值 (高级)
-- ⚙️ 可调节插入帧数（1-10帧）
-- 📊 显示原始和处理后 GIF 的详细信息
-- 🔄 实时处理预览
-- 📱 响应式设计，支持移动设备
+- 🖼️ Upload and process any GIF file
+- 🧠 Support for multiple interpolation algorithms:
+  - Linear Interpolation (Fast) - Simple blending between frames
+  - Weighted Interpolation (Balanced) - Improved blending with position weighting
+  - Bilinear Interpolation (Smooth) - Smoother transitions with 2D interpolation
+  - Motion Estimation (Better) - Detects motion between frames for better results
+  - Optical Flow (Advanced) - Highest quality but computationally intensive
+- ⚙️ Adjustable number of frames to insert (1-10 frames)
+- 🎛️ Playback speed control and disposal method settings
+- 📊 Comprehensive metadata display for both original and processed GIFs:
+  - Dimensions, file size, frame count
+  - Frame rate and duration
+  - Transparency detection
+  - Loop count and playback mode
+  - Color depth information
+- 🔄 Real-time processing preview
+- 📱 Responsive design, supports mobile devices
 
-## 在线演示
+## Live Demo
 
-访问 [Gif Interpolate](https://Zhipingyang.github.io/GifInterpolate) 体验在线版本。
+Visit [GIF Interpolate](https://Zhipingyang.github.io/GifInterpolate) to experience the online version.
 
-## 安装与运行
+## Installation and Setup
 
-### 前提条件
+### Prerequisites
 
-- Node.js (v14.0 或更高版本)
-- npm 或 yarn
+- Node.js (v14.0 or higher)
+- npm or yarn
 
-### 克隆仓库
+### Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/GifInterpolate.git
+git clone https://github.com/ZhipingYang/GifInterpolate.git
 cd GifInterpolate
 ```
 
-### 安装依赖
+### Install Dependencies
 
-使用 npm:
+Using npm:
 
 ```bash
 npm install
 ```
 
-或使用 yarn:
+Or using yarn:
 
 ```bash
 yarn
 ```
 
-### 主要依赖项
+### Key Dependencies
 
-项目使用以下关键依赖：
+The project uses the following key dependencies:
 
-- React 和 React DOM
+- React and React DOM
 - TypeScript
 - Material UI (@mui/material, @mui/icons-material)
-- gif.js (GIF 编码库)
-- gifuct-js (GIF 解析库)
+- gif.js (GIF encoding library)
+- gifuct-js (GIF parsing library)
 
-### 运行开发服务器
+### Run Development Server
 
 ```bash
-# 本地运行（推荐）
+# Local development (recommended)
 npm run start:local
-# 或
+# or
 yarn start:local
 
-# 标准启动
+# Standard start
 npm start
-# 或
+# or
 yarn start
 ```
 
-应用将在开发模式下运行，访问 [http://localhost:3000](http://localhost:3000) 查看。
+The application will run in development mode. Access it at [http://localhost:3000](http://localhost:3000).
 
-## 部署到 GitHub Pages
+## Deploy to GitHub Pages
 
-### 安装 gh-pages 包
+### Install gh-pages Package
 
 ```bash
 npm install --save-dev gh-pages cross-env
-# 或
+# or
 yarn add --dev gh-pages cross-env
 ```
 
-### package.json 配置说明
+### package.json Configuration Notes
 
-本项目已配置以下脚本用于不同场景：
+This project has configured the following scripts for different scenarios:
 
-- `start:local`: 使用空的 PUBLIC_URL 在本地开发（推荐）
-- `start`: 标准启动脚本 
-- `deploy`: 自动构建并部署到 GitHub Pages
+- `start:local`: Use empty PUBLIC_URL for local development (recommended)
+- `start`: Standard startup script
+- `deploy`: Automatically build and deploy to GitHub Pages
 
-注意：开发时使用 `homepage: "."`，部署时使用 `homepage: "https://ZhipingYang.github.io/GifInterpolate"`。
+Note: Use `homepage: "."` for development and `homepage: "https://ZhipingYang.github.io/GifInterpolate"` for deployment.
 
-### 部署应用
+### Deploy the Application
 
 ```bash
 npm run deploy
-# 或
+# or
 yarn deploy
 ```
 
-这将构建应用并将其部署到 GitHub Pages。
+This will build the application and deploy it to GitHub Pages.
 
-## 使用说明
+## Usage Instructions
 
-1. 点击或拖拽上传 GIF 文件
-2. 选择插帧算法和要插入的帧数
-3. 点击"开始生成插帧GIF"按钮
-4. 处理完成后，可以查看和下载插帧后的 GIF
+1. Click or drag to upload a GIF file
+2. Select the interpolation algorithm and the number of frames to insert
+3. Adjust playback speed and frame disposal method if needed
+4. Click the "Generate Interpolated GIF" button
+5. After processing, you can view detailed metadata and download the interpolated GIF
 
-## 注意事项
+## Technical Implementation
 
-- 大型 GIF 或使用高级算法（如光流插值）可能需要较长处理时间
-- 处理过程中会消耗较多内存，特别是对于大尺寸 GIF
-- 对于复杂 GIF，建议使用运动估计插值或光流插值以获得更好效果
+The application uses several techniques to handle GIF processing:
 
-## 许可
+- Frame extraction and analysis using gifuct-js
+- Canvas-based frame manipulation for transparency support
+- Multiple interpolation algorithms with increasing complexity and quality
+- Efficient memory management for large GIFs
+- Progressive rendering for real-time preview
 
-MIT 许可证 - 详见 [LICENSE](LICENSE) 文件
+## Notes
 
-## 贡献
+- Large GIFs or advanced algorithms (like optical flow) may require longer processing time
+- The processing will consume significant memory, especially for large-sized GIFs
+- For complex GIFs, motion estimation or optical flow interpolation is recommended for better results
+- Transparent GIFs are supported but may have varying results depending on the algorithm
 
-欢迎提交 Issue 和 Pull Request！
+## License
+
+MIT License - See the [LICENSE](LICENSE) file for details
+
+## Contributing
+
+Issues and Pull Requests are welcome!

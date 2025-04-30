@@ -33,10 +33,10 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
       <Stack spacing={2}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="subtitle1" color="primary.main">
-            {stage || '处理中...'}
+            {stage || 'Processing...'}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {progressPercentage}% ({current}/{total} 帧)
+            {progressPercentage}% ({current}/{total} frames)
           </Typography>
         </Box>
         
@@ -55,7 +55,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
             disabled={!isProcessing}
             size="small"
           >
-            取消
+            Cancel
           </Button>
         </Box>
       </Stack>

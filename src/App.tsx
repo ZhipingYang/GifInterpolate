@@ -54,31 +54,12 @@ function App() {
           <Toolbar>
             <AutoFixHighIcon sx={{ mr: 2 }} />
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-              GIF 插帧处理器
+              GIF Frame Interpolator
             </Typography>
           </Toolbar>
         </AppBar>
         
-        <Container maxWidth="lg" sx={{ mb: 4, flex: 1 }}>
-          <Paper 
-            elevation={0} 
-            sx={{ 
-              p: 4, 
-              mb: 4, 
-              borderRadius: 2, 
-              textAlign: 'center',
-              background: 'linear-gradient(45deg, #3f51b5 30%, #7986cb 90%)',
-              color: 'white'
-            }}
-          >
-            <Typography variant="h4" component="h1" gutterBottom>
-              提升您的GIF动画质量
-            </Typography>
-            <Typography variant="subtitle1">
-              使用先进插帧算法，让您的GIF更加流畅自然
-            </Typography>
-          </Paper>
-          
+        <Container maxWidth="lg" sx={{ mb: 4, flex: 1 }}>          
           <GifPlayer />
         </Container>
         
@@ -93,7 +74,7 @@ function App() {
           }}
         >
           <Typography variant="body2" color="text.secondary">
-            GIF 插帧处理器 • 使用 React 和 Material UI 构建
+            GIF Frame Interpolator • Built with React and Material UI
           </Typography>
         </Box>
       </Box>
