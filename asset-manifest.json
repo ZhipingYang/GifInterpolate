@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/GifInterpolate/static/css/main.e6c13ad2.css",
+    "main.js": "/GifInterpolate/static/js/main.2545a267.js",
+    "static/js/453.b682b8c7.chunk.js": "/GifInterpolate/static/js/453.b682b8c7.chunk.js",
+    "index.html": "/GifInterpolate/index.html",
+    "main.e6c13ad2.css.map": "/GifInterpolate/static/css/main.e6c13ad2.css.map",
+    "main.2545a267.js.map": "/GifInterpolate/static/js/main.2545a267.js.map",
+    "453.b682b8c7.chunk.js.map": "/GifInterpolate/static/js/453.b682b8c7.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.e6c13ad2.css",
+    "static/js/main.2545a267.js"
+  ]
+}
