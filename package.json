@@ -28,9 +28,10 @@
     "start": "node -e \"const fs=require('fs');const pkg=require('./package.json');const originalHomepage=pkg.homepage;pkg.homepage='.';fs.writeFileSync('package.json',JSON.stringify(pkg,null,2));\" && react-scripts start && node -e \"const fs=require('fs');const pkg=require('./package.json');pkg.homepage='https://ZhipingYang.github.io/GifInterpolate';fs.writeFileSync('package.json',JSON.stringify(pkg,null,2));\"",
     "start:local": "cross-env PUBLIC_URL='' react-scripts start",
     "build": "react-scripts build",
+    "build:timestamp": "cross-env REACT_APP_DEPLOY_TIMESTAMP=\"$(date)\" react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "predeploy": "npm run build",
+    "predeploy": "npm run build:timestamp",
     "deploy": "gh-pages -d build"
   },
   "eslintConfig": {

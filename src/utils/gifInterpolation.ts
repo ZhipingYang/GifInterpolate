@@ -1,4 +1,5 @@
 // GIF Interpolation Utilities
+import logger from './logger';
 
 interface Frame {
   width: number;
@@ -15,11 +16,19 @@ export type InterpolationAlgorithm = 'linear' | 'weighted' | 'motion' | 'bilinea
 
 // 光流算法
 export const estimateOpticalFlow = async (data1: Uint8ClampedArray, data2: Uint8ClampedArray, width: number, height: number): Promise<any[]> => {
+  logger.info('Starting optical flow estimation', { dimensions: `${width}x${height}` });
+  
   // 对大图像进行下采样以加速
   const maxDim = 200;
   const scale = maxDim / Math.max(width, height);
   const scaledWidth = Math.floor(width * scale);
   const scaledHeight = Math.floor(height * scale);
+  
+  logger.debug('Downsampling images for optical flow', { 
+    originalDimensions: `${width}x${height}`,
+    scaledDimensions: `${scaledWidth}x${scaledHeight}`,
+    scale
+  });
   
   // 创建下采样后的图像数据
   const scaledData1 = new Uint8ClampedArray(scaledWidth * scaledHeight * 4);
@@ -45,6 +54,8 @@ export const estimateOpticalFlow = async (data1: Uint8ClampedArray, data2: Uint8
     }
   }
   
+  logger.debug('Downsampling completed');
+  
   // 计算光流
   const displacements: { x: number, y: number }[] = new Array(width * height);
   
@@ -55,8 +66,12 @@ export const estimateOpticalFlow = async (data1: Uint8ClampedArray, data2: Uint8
   // 使用网格进行计算，而不是计算每个像素
   const gridSpacing = Math.max(4, blockSize / 2);
   
+  logger.debug('Optical flow parameters', { blockSize, searchRange, gridSpacing });
+  
   // 计算网格上的光流
   const gridDisplacements: {x: number, y: number, sx: number, sy: number}[] = [];
+  
+  logger.debug('Starting grid-based flow calculation');
   
   for (let y = blockSize; y < scaledHeight - blockSize; y += gridSpacing) {
     for (let x = blockSize; x < scaledWidth - blockSize; x += gridSpacing) {
@@ -122,7 +137,11 @@ export const estimateOpticalFlow = async (data1: Uint8ClampedArray, data2: Uint8
     }
   }
   
+  logger.debug(`Generated ${gridDisplacements.length} displacement vectors`);
+  
   // 插值到原始分辨率
+  logger.debug('Interpolating displacement vectors to full resolution');
+  
   // 使用反向坐标映射，从目标图像到源图像
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -161,6 +180,7 @@ export const estimateOpticalFlow = async (data1: Uint8ClampedArray, data2: Uint8
     }
   }
   
+  logger.info('Optical flow estimation completed');
   return displacements;
 };
 
@@ -174,16 +194,24 @@ export const createLinearInterpolatedFrames = async (
   delay2: number,
   frameCount: number
 ): Promise<Frame[]> => {
+  logger.info('Creating linear interpolated frames', { 
+    dimensions: `${width}x${height}`, 
+    frameCount 
+  });
+  
   const frames: Frame[] = [];
   const data1 = frame1.data;
   const data2 = frame2.data;
   
   // 计算平均延迟
   const avgDelay = Math.floor((delay1 + delay2) / (frameCount + 1));
+  logger.debug('Using average delay', { delay1, delay2, avgDelay });
   
   for (let f = 1; f <= frameCount; f++) {
     const ratio = f / (frameCount + 1);
     const newFrame = new ImageData(width, height);
+    
+    logger.debug(`Creating interpolated frame ${f}/${frameCount} with ratio ${ratio.toFixed(2)}`);
     
     for (let i = 0; i < data1.length; i += 4) {
       // 线性插值
@@ -222,6 +250,7 @@ export const createLinearInterpolatedFrames = async (
     });
   }
   
+  logger.info(`Created ${frames.length} linear interpolated frames`);
   return frames;
 };
 
@@ -236,6 +265,11 @@ export const createInterpolatedFrames = async (
   algorithm: InterpolationAlgorithm,
   frameCount: number
 ): Promise<Frame[]> => {
+  logger.info(`Starting frame interpolation using ${algorithm} algorithm`, {
+    dimensions: `${width}x${height}`,
+    requestedFrameCount: frameCount
+  });
+  
   const frames: Frame[] = [];
   const data1 = frame1.data;
   const data2 = frame2.data;
@@ -250,12 +284,20 @@ export const createInterpolatedFrames = async (
     const reductionFactor = Math.min(1, maxPixels / pixels);
     actualFrameCount = Math.max(1, Math.floor(frameCount * reductionFactor));
     if (actualFrameCount < frameCount) {
-      console.log(`Image size ${width}x${height} (${pixels} pixels) is large, reducing frame count from ${frameCount} to ${actualFrameCount}`);
+      logger.warning(`Image size ${width}x${height} (${pixels} pixels) is large, reducing frame count from ${frameCount} to ${actualFrameCount}`, {
+        width,
+        height,
+        pixels,
+        originalFrameCount: frameCount,
+        reducedFrameCount: actualFrameCount,
+        reductionFactor
+      });
     }
   }
   
   // 计算平均延迟
   const avgDelay = Math.floor((delay1 + delay2) / (actualFrameCount + 1));
+  logger.debug('Frame timing', { delay1, delay2, avgDelay });
   
   // 根据不同算法执行不同的处理逻辑
   switch (algorithm) {
@@ -263,12 +305,12 @@ export const createInterpolatedFrames = async (
       // 光流算法
       try {
         // 显示状态更新
-        console.log('Computing optical flow...');
+        logger.info('Computing optical flow...');
         
         // 计算光流场
         const displacements = await estimateOpticalFlow(data1, data2, width, height);
         
-        console.log('Creating interpolated frames...');
+        logger.info('Creating interpolated frames with optical flow...');
         
         // 分批创建中间帧以避免UI阻塞
         for (let f = 1; f <= actualFrameCount; f++) {
@@ -279,6 +321,7 @@ export const createInterpolatedFrames = async (
           
           // 插值比例
           const ratio = f / (actualFrameCount + 1);
+          logger.debug(`Creating optical flow frame ${f}/${actualFrameCount} at ratio ${ratio.toFixed(2)}`);
           
           // 创建新帧
           const newFrame = new ImageData(width, height);
@@ -287,6 +330,7 @@ export const createInterpolatedFrames = async (
           const batchSize = 10000;
           const totalPixels = width * height;
           const batches = Math.ceil(totalPixels / batchSize);
+          logger.debug(`Processing in ${batches} batches of ${batchSize} pixels`);
           
           for (let batch = 0; batch < batches; batch++) {
             const startIdx = batch * batchSize;
@@ -365,12 +409,17 @@ export const createInterpolatedFrames = async (
             top: 0
           });
           
-          console.log(`Created frame ${f}/${actualFrameCount}`);
+          logger.debug(`Created optical flow frame ${f}/${actualFrameCount}`);
         }
+        
+        logger.info(`Completed optical flow interpolation with ${frames.length} frames`);
+        
       } catch (error: any) {
         // 光流算法失败时回退到线性插值
-        console.error('Error in optical flow calculation:', error);
-        console.log('Falling back to linear interpolation');
+        logger.error('Error in optical flow calculation - falling back to linear interpolation', {
+          error: error.message,
+          stack: error.stack
+        });
         
         // 使用线性插值作为备选
         return await createLinearInterpolatedFrames(frame1, frame2, width, height, delay1, delay2, actualFrameCount);
@@ -379,8 +428,11 @@ export const createInterpolatedFrames = async (
       
     case 'linear':
       // 线性插值
+      logger.info('Using linear interpolation algorithm');
       for (let f = 1; f <= actualFrameCount; f++) {
         const ratio = f / (actualFrameCount + 1);
+        logger.debug(`Creating linear frame ${f}/${actualFrameCount} at ratio ${ratio.toFixed(2)}`);
+        
         const newFrame = new ImageData(width, height);
         
         // 分批处理以避免UI阻塞
@@ -437,14 +489,19 @@ export const createInterpolatedFrames = async (
           top: 0
         });
       }
+      
+      logger.info(`Completed linear interpolation with ${frames.length} frames`);
       break;
       
     case 'weighted':
       // 加权插值（基于时间）
+      logger.info('Using weighted interpolation algorithm');
       for (let f = 1; f <= actualFrameCount; f++) {
         const ratio = f / (actualFrameCount + 1);
         const newFrame = new ImageData(width, height);
         const timeRatio = delay1 / (delay1 + delay2);
+        
+        logger.debug(`Creating weighted frame ${f}/${actualFrameCount} with ratio ${ratio.toFixed(2)}, timeRatio ${timeRatio.toFixed(2)}`);
         
         // 分批处理
         const batchSize = 50000;
@@ -496,13 +553,18 @@ export const createInterpolatedFrames = async (
           top: 0
         });
       }
+      
+      logger.info(`Completed weighted interpolation with ${frames.length} frames`);
       break;
       
     case 'bilinear':
       // 双线性插值
+      logger.info('Using bilinear interpolation algorithm');
       for (let f = 1; f <= actualFrameCount; f++) {
         const ratio = f / (actualFrameCount + 1);
         const newFrame = new ImageData(width, height);
+        
+        logger.debug(`Creating bilinear frame ${f}/${actualFrameCount} with ratio ${ratio.toFixed(2)}`);
         
         // 分批处理像素
         for (let y = 0; y < height; y++) {
@@ -551,13 +613,18 @@ export const createInterpolatedFrames = async (
           top: 0
         });
       }
+      
+      logger.info(`Completed bilinear interpolation with ${frames.length} frames`);
       break;
       
     case 'motion':
       // 简化的运动估计插值
+      logger.info('Using motion estimation interpolation algorithm');
       for (let f = 1; f <= actualFrameCount; f++) {
         const ratio = f / (actualFrameCount + 1);
         const newFrame = new ImageData(width, height);
+        
+        logger.debug(`Creating motion estimation frame ${f}/${actualFrameCount} with ratio ${ratio.toFixed(2)}`);
         
         // 分批处理行
         for (let y = 0; y < height; y++) {
@@ -629,6 +696,8 @@ export const createInterpolatedFrames = async (
           top: 0
         });
       }
+      
+      logger.info(`Completed motion estimation interpolation with ${frames.length} frames`);
       break;
   }
   
@@ -647,15 +716,16 @@ export const checkMemoryUsage = (): boolean => {
         // @ts-ignore
         (performance.memory.jsHeapSizeLimit || 2048 * 1024 * 1024) / (1024 * 1024); // MB
       
-      console.log(`Memory usage: ${usedHeapSize.toFixed(2)}MB / ${maxHeapSize.toFixed(2)}MB`);
+      logger.debug(`Memory usage: ${usedHeapSize.toFixed(2)}MB / ${maxHeapSize.toFixed(2)}MB`);
       
       // 如果内存使用超过80%，警告
       if (usedHeapSize > maxHeapSize * 0.8) {
+        logger.warning(`High memory usage detected: ${usedHeapSize.toFixed(2)}MB / ${maxHeapSize.toFixed(2)}MB (${Math.round(usedHeapSize/maxHeapSize*100)}%)`);
         return true;
       }
     }
-  } catch (e) {
-    console.log('Memory API not available');
+  } catch (e: any) {
+    logger.warning('Memory API not available', { error: e.message });
   }
   return false;
 };
@@ -666,10 +736,20 @@ export const drawFrameOnCanvas = (
   canvas: HTMLCanvasElement, 
   ctx: CanvasRenderingContext2D
 ) => {
-  // 绘制当前帧到canvas
-  const imgData = ctx.createImageData(frame.dims.width, frame.dims.height);
-  imgData.data.set(frame.patch);
-  ctx.putImageData(imgData, frame.dims.left, frame.dims.top);
+  try {
+    // 绘制当前帧到canvas
+    const imgData = ctx.createImageData(frame.dims.width, frame.dims.height);
+    imgData.data.set(frame.patch);
+    ctx.putImageData(imgData, frame.dims.left, frame.dims.top);
+  } catch (e: any) {
+    logger.error(`Error drawing frame to canvas: ${e.message}`, {
+      frameWidth: frame.dims?.width,
+      frameHeight: frame.dims?.height,
+      canvasWidth: canvas.width,
+      canvasHeight: canvas.height,
+      error: e.message
+    });
+  }
 };
 
 // 调整帧时间
@@ -678,14 +758,27 @@ export const adjustFrameTiming = (
   originalTotalDuration: number,
   originalFrames: any[]
 ) => {
+  logger.info('Adjusting frame timing', {
+    frameCount: processedFrames.length,
+    originalTotalDuration
+  });
+  
   const newTotalFrames = processedFrames.length;
   const frameTimeRatio = originalTotalDuration / newTotalFrames;
+  
+  logger.debug('Frame timing calculations', {
+    newTotalFrames,
+    frameTimeRatio: frameTimeRatio.toFixed(2)
+  });
   
   // 两种方案处理时间
   if (frameTimeRatio >= 20) {
     // 如果平均帧时间够长，平均分配
+    const adjustedDelay = Math.max(20, Math.round(frameTimeRatio));
+    logger.debug(`Using average distribution with ${adjustedDelay}ms per frame`);
+    
     processedFrames.forEach(frame => {
-      frame.delay = Math.max(20, Math.round(frameTimeRatio));
+      frame.delay = adjustedDelay;
     });
   } else {
     // 如果平均帧时间太短，保持原帧时间不变，缩短插值帧时间
@@ -702,6 +795,8 @@ export const adjustFrameTiming = (
       }
     }
     
+    logger.debug(`Identified ${originalFrameIndexes.length} original frames at indexes: ${originalFrameIndexes.slice(0, 5).join(', ')}${originalFrameIndexes.length > 5 ? '...' : ''}`);
+    
     // 设置原始帧的时间
     for (let i = 0; i < originalFrameIndexes.length; i++) {
       const frameIndex = originalFrameIndexes[i];
@@ -715,6 +810,12 @@ export const adjustFrameTiming = (
     const avgInterpolatedTime = interpolatedFrameCount > 0 ? 
       Math.max(10, Math.floor(remainingTime / interpolatedFrameCount)) : 0;
     
+    logger.debug('Interpolated frame timing', {
+      interpolatedFrameCount,
+      remainingTime,
+      avgInterpolatedTime
+    });
+    
     // 设置插值帧的时间
     for (let i = 0; i < processedFrames.length; i++) {
       if (!originalFrameIndexes.includes(i)) {
@@ -722,6 +823,8 @@ export const adjustFrameTiming = (
       }
     }
   }
+  
+  logger.info('Frame timing adjustment completed');
 };
 
 export default {

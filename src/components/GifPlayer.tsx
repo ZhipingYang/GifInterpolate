@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { parseGIF, decompressFrames } from 'gifuct-js';
 import GIF from 'gif.js';
 import {
@@ -11,6 +11,7 @@ import {
 import { Box, Container, Paper, SelectChangeEvent } from '@mui/material';
 import OriginalGif from './OriginalGif';
 import ProcessedGif from './ProcessedGif';
+import logger from '../utils/logger';
 
 // Import UI components
 import ConfirmDialog from './ConfirmDialog';
@@ -28,6 +29,28 @@ interface Frame {
 }
 
 const GifPlayer: React.FC = () => {
+  // Patch gif.js library to use willReadFrequently for all canvas operations
+  useEffect(() => {
+    const patchGifLibrary = () => {
+      // Override Canvas.prototype.getContext to always use willReadFrequently for 2d contexts
+      const originalGetContext = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function(
+        this: HTMLCanvasElement,
+        contextType: string, 
+        contextAttributes?: any
+      ) {
+        if (contextType === '2d') {
+          contextAttributes = contextAttributes || {};
+          contextAttributes.willReadFrequently = true;
+        }
+        return originalGetContext.call(this, contextType, contextAttributes);
+      } as typeof HTMLCanvasElement.prototype.getContext;
+      logger.info('Canvas getContext patched to use willReadFrequently');
+    };
+    
+    patchGifLibrary();
+  }, []);
+
   const [originalGif, setOriginalGif] = useState<string | null>(null);
   const [interpolatedGif, setInterpolatedGif] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -97,9 +120,11 @@ const GifPlayer: React.FC = () => {
       // 直接设置原始GIF的URL，以便用户可以看到上传的文件
       const url = URL.createObjectURL(file);
       setOriginalGif(url);
+      logger.info(`File selected: ${file.name}`, { size: file.size, type: file.type });
     } catch (error: any) {
       console.error('Error handling file:', error);
       setErrorMessage(`File processing error: ${error.message}`);
+      logger.error(`Error handling file: ${error.message}`, error);
     }
   };
 
@@ -107,24 +132,29 @@ const GifPlayer: React.FC = () => {
   const startGifProcessing = async () => {
     if (!currentFile) {
       alert('Please upload a GIF file first');
+      logger.warning('Attempted to start processing without a file');
       return;
     }
 
     try {
       setIsProcessing(true);
       setProcessingStage('Reading GIF file...');
+      logger.info('Starting GIF processing', { fileName: currentFile.name, fileSize: currentFile.size });
       
       // Check file size
       if (currentFile.size > 20 * 1024 * 1024) { // More than 20MB
+        logger.warning(`Large file detected: ${(currentFile.size / (1024 * 1024)).toFixed(2)}MB`);
         showConfirmDialog(
           'File is larger than 20MB. Processing may be very slow and consume a lot of memory. Do you want to continue?',
           async () => {
             // Continue processing
+            logger.info('User confirmed processing large file');
             await continueProcessing(currentFile);
           },
           () => {
             // Cancel processing
             setIsProcessing(false);
+            logger.info('User cancelled processing large file');
           }
         );
         return;
@@ -134,6 +164,7 @@ const GifPlayer: React.FC = () => {
     } catch (error: any) {
       console.error('Error processing GIF:', error);
       setErrorMessage(`GIF processing error: ${error.message}`);
+      logger.error(`Error processing GIF: ${error.message}`, error);
       alert('Error processing GIF. Please try another file.');
     } finally {
       setProcessingStage('');
@@ -147,22 +178,30 @@ const GifPlayer: React.FC = () => {
   const continueProcessing = async (file: File) => {
     try {
       // Read original GIF file
+      logger.info('Reading GIF file...');
       const arrayBuffer = await file.arrayBuffer();
       const gifData = parseGIF(arrayBuffer);
       const frames = decompressFrames(gifData, true);
+      logger.info(`GIF parsed successfully. Found ${frames.length} frames.`, {
+        width: frames[0].dims.width,
+        height: frames[0].dims.height
+      });
       
       // Check frame count
       if (frames.length > 100) { // More than 100 frames
+        logger.warning(`High frame count detected: ${frames.length} frames`);
         showConfirmDialog(
           `This GIF contains ${frames.length} frames. Processing may take a long time. Do you want to continue?`,
           async () => {
             // Continue processing the GIF
             setProcessingStage('Processing GIF...');
+            logger.info('User confirmed processing high frame count GIF');
             await processGif(frames);
           },
           () => {
             // Cancel processing
             setIsProcessing(false);
+            logger.info('User cancelled processing high frame count GIF');
           }
         );
         return;
@@ -175,6 +214,7 @@ const GifPlayer: React.FC = () => {
     } catch (error: any) {
       console.error('Error in continueProcessing:', error);
       setErrorMessage(`GIF processing error: ${error.message}`);
+      logger.error(`Error in continueProcessing: ${error.message}`, error);
       setIsProcessing(false);
     }
   };
@@ -183,12 +223,16 @@ const GifPlayer: React.FC = () => {
     try {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      if (!ctx) return;
+      if (!ctx) {
+        logger.error('Failed to get canvas context');
+        return;
+      }
       
       // 设置canvas尺寸
       const { width, height } = gifFrames[0].dims;
       canvas.width = width;
       canvas.height = height;
+      logger.info(`Processing GIF with dimensions: ${width}x${height}`);
       
       // 防止大型GIF爆内存
       const totalPixels = width * height;
@@ -196,15 +240,18 @@ const GifPlayer: React.FC = () => {
       
       if (totalPixels > 1000000 || (totalPixels > 500000 && totalFrames > 20)) {
         // Use custom confirmation dialog instead of confirm
+        logger.warning(`Large GIF detected: ${width}x${height}, ${totalPixels} pixels, ${totalFrames} frames`);
         showConfirmDialog(
           `This GIF is quite large (${width}x${height}, ${totalFrames} frames). Processing may consume a lot of memory and slow down your browser. Do you want to continue?`,
           () => {
             // Continue processing
+            logger.info('User confirmed processing large GIF');
             continueGifProcessing(gifFrames, width, height, totalFrames);
           },
           () => {
             // Cancel processing
             setIsProcessing(false);
+            logger.info('User cancelled processing large GIF');
           }
         );
         return;
@@ -213,6 +260,7 @@ const GifPlayer: React.FC = () => {
       await continueGifProcessing(gifFrames, width, height, totalFrames);
     } catch (error: any) {
       console.error('Error in GIF processing:', error);
+      logger.error(`Error in GIF processing: ${error.message}`, error);
       alert(`GIF processing error: ${error.message}`);
       setIsProcessing(false);
     }
@@ -240,24 +288,32 @@ const GifPlayer: React.FC = () => {
       let adjustedFrameCount = frameCount;
       if (width * height > 500000) { // 大于50万像素
         adjustedFrameCount = Math.max(1, Math.floor(frameCount * 0.5)); // 减少一半插帧
-        console.log(`Large GIF detected, reducing interpolation frames from ${frameCount} to ${adjustedFrameCount}`);
+        logger.warning(`Large GIF detected, reducing interpolation frames from ${frameCount} to ${adjustedFrameCount}`);
       }
       
       // 修正总帧数估计
       estimatedTotalFrames += (gifFrames.length - 1) * adjustedFrameCount;
       setTotalFrames(estimatedTotalFrames);
+      logger.info(`Estimated total frames after interpolation: ${estimatedTotalFrames}`);
+      logger.info(`Using interpolation algorithm: ${algorithm}`);
       
       // 创建累积画布，用于处理disposal methods
       const cumulativeCanvas = document.createElement('canvas');
       const cumulativeCtx = cumulativeCanvas.getContext('2d', { willReadFrequently: true });
-      if (!cumulativeCtx) return;
+      if (!cumulativeCtx) {
+        logger.error('Failed to get cumulative canvas context');
+        return;
+      }
       cumulativeCanvas.width = width;
       cumulativeCanvas.height = height;
       
       // 创建背景画布（用于恢复透明背景）
       const bgCanvas = document.createElement('canvas');
       const bgCtx = bgCanvas.getContext('2d', { willReadFrequently: true });
-      if (!bgCtx) return;
+      if (!bgCtx) {
+        logger.error('Failed to get background canvas context');
+        return;
+      }
       bgCanvas.width = width;
       bgCanvas.height = height;
       
@@ -270,14 +326,16 @@ const GifPlayer: React.FC = () => {
         if (Date.now() - lastMemoryCheck > 5000) { // 每5秒检查一次
           lastMemoryCheck = Date.now();
           if (checkMemoryUsage()) {
-            console.warn('High memory usage detected, trying to clean up...');
+            logger.warning('High memory usage detected, trying to clean up...');
             
             // 尝试手动触发垃圾回收
             if (typeof window.gc === 'function') {
               try {
                 window.gc();
+                logger.debug('Manual garbage collection triggered');
               } catch (e) {
                 // 忽略错误
+                logger.debug('Failed to trigger manual garbage collection', e);
               }
             }
           }
@@ -288,10 +346,12 @@ const GifPlayer: React.FC = () => {
       const batchSize = 5; // 每批处理的帧对数
       const framePairs = gifFrames.length - 1;
       const batches = Math.ceil(framePairs / batchSize);
+      logger.info(`Processing ${framePairs} frame pairs in ${batches} batches of ${batchSize}`);
       
       for (let batch = 0; batch < batches; batch++) {
         const startIdx = batch * batchSize;
         const endIdx = Math.min(startIdx + batchSize, framePairs);
+        logger.debug(`Processing batch ${batch+1}/${batches}, frames ${startIdx} to ${endIdx}`);
         
         // 处理当前批次的帧对
         for (let i = startIdx; i < endIdx; i++) {
@@ -301,6 +361,7 @@ const GifPlayer: React.FC = () => {
             
             // 处理当前帧的disposal method
             const disposalType = frame1.disposalMethod;
+            logger.debug(`Processing frame ${i}, disposal method: ${disposalType}`);
             
             // 保存背景（用于disposal type 2）
             if (i === 0 || disposalType === 2) {
@@ -329,16 +390,21 @@ const GifPlayer: React.FC = () => {
             // 保存当前累积画布状态（用于disposal type 3）
             const prevFrameCanvas = document.createElement('canvas');
             const prevFrameCtx = prevFrameCanvas.getContext('2d', { willReadFrequently: true });
-            if (prevFrameCtx) {
-              prevFrameCanvas.width = width;
-              prevFrameCanvas.height = height;
-              prevFrameCtx.drawImage(cumulativeCanvas, 0, 0);
+            if (!prevFrameCtx) {
+              logger.error('Failed to get previous frame canvas context');
+              continue;
             }
+            prevFrameCanvas.width = width;
+            prevFrameCanvas.height = height;
+            prevFrameCtx.drawImage(cumulativeCanvas, 0, 0);
             
             // 临时画布用于创建下一帧的状态（不影响累积画布）
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
-            if (!tempCtx) continue;
+            if (!tempCtx) {
+              logger.error('Failed to get temporary canvas context');
+              continue;
+            }
             tempCanvas.width = width;
             tempCanvas.height = height;
             
@@ -376,6 +442,7 @@ const GifPlayer: React.FC = () => {
               });
               
               try {
+                logger.debug(`Creating interpolated frames between frame ${i} and ${i+1} using ${algorithm} algorithm`);
                 // 同时跑超时保护和插值计算
                 const interpolatedFrames = await Promise.race([
                   createInterpolatedFrames(
@@ -391,6 +458,8 @@ const GifPlayer: React.FC = () => {
                   timeoutPromise
                 ]) as Frame[];
                 
+                logger.debug(`Created ${interpolatedFrames.length} interpolated frames`);
+                
                 // 添加插值帧，保持与原始帧相同的disposal type
                 for (const frame of interpolatedFrames) {
                   frame.disposalType = disposalType;
@@ -398,6 +467,7 @@ const GifPlayer: React.FC = () => {
                   setCurrentProgress(processedFrames.length);
                 }
               } catch (error: any) {
+                logger.error(`Error during frame interpolation: ${error.message}`, error);
                 console.error('Error during frame interpolation:', error);
                 alert(`Interpolation error: ${error.message}. Skipping complex frame interpolation.`);
                 
@@ -420,7 +490,8 @@ const GifPlayer: React.FC = () => {
             // 让出主线程，避免UI阻塞
             await new Promise(resolve => setTimeout(resolve, 0));
             
-          } catch (e) {
+          } catch (e: any) {
+            logger.error(`Error processing frame: ${e.message}`, e);
             console.error('Error processing frame:', e);
             // 继续处理下一帧
           }
@@ -442,9 +513,11 @@ const GifPlayer: React.FC = () => {
         top: 0
       });
       setCurrentProgress(processedFrames.length);
+      logger.info(`All frames processed. Total: ${processedFrames.length} frames`);
       
       // 调整每帧延迟时间，保持总时长一致
       adjustFrameTiming(processedFrames, originalTotalDuration, gifFrames);
+      logger.info('Frame timing adjusted to maintain original duration');
       
       // 最终更新预览
       await createIntermediatePreview(processedFrames, width, height);
@@ -452,6 +525,7 @@ const GifPlayer: React.FC = () => {
       // 最后创建完整GIF
       await createFinalGif(processedFrames, width, height);
     } catch (error: any) {
+      logger.error(`Error in GIF processing: ${error.message}`, error);
       console.error('Error in GIF processing:', error);
       alert(`GIF processing error: ${error.message}`);
       setIsProcessing(false);
@@ -464,6 +538,7 @@ const GifPlayer: React.FC = () => {
     width: number,
     height: number
   ) => {
+    logger.debug(`Creating intermediate preview with ${Math.min(30, processedFrames.length)} frames`);
     // 最多使用前30帧创建预览，避免过大
     const previewFrames = processedFrames.slice(0, Math.min(30, processedFrames.length));
     
@@ -483,7 +558,10 @@ const GifPlayer: React.FC = () => {
     renderCanvas.width = width;
     renderCanvas.height = height;
     const renderCtx = renderCanvas.getContext('2d', { willReadFrequently: true });
-    if (!renderCtx) return;
+    if (!renderCtx) {
+      logger.error('Failed to get preview render canvas context');
+      return;
+    }
     
     // 添加帧
     for (const frame of previewFrames) {
@@ -503,6 +581,7 @@ const GifPlayer: React.FC = () => {
       tempGif.on('finished', (blob: Blob) => {
         const url = URL.createObjectURL(blob);
         setCurrentGif(url);
+        logger.info(`Intermediate preview created: ${(blob.size / 1024).toFixed(2)}KB`);
         resolve();
       });
       
@@ -516,7 +595,7 @@ const GifPlayer: React.FC = () => {
     width: number, 
     height: number
   ) => {
-    console.log('Creating final GIF...');
+    logger.info('Creating final GIF...');
     
     // 创建新的GIF
     const gif = new GIF({
@@ -535,15 +614,20 @@ const GifPlayer: React.FC = () => {
     renderCanvas.width = width;
     renderCanvas.height = height;
     const renderCtx = renderCanvas.getContext('2d', { willReadFrequently: true });
-    if (!renderCtx) return;
+    if (!renderCtx) {
+      logger.error('Failed to get final render canvas context');
+      return;
+    }
     
     // 分批添加帧到GIF
     const batchSize = 20; // 每批处理的帧数
     const batches = Math.ceil(processedFrames.length / batchSize);
+    logger.info(`Adding ${processedFrames.length} frames to final GIF in ${batches} batches`);
     
     for (let batch = 0; batch < batches; batch++) {
       const startIdx = batch * batchSize;
       const endIdx = Math.min(startIdx + batchSize, processedFrames.length);
+      logger.debug(`Adding frames ${startIdx} to ${endIdx-1} to GIF (batch ${batch+1}/${batches})`);
       
       for (let i = startIdx; i < endIdx; i++) {
         const frame = processedFrames[i];
@@ -559,11 +643,15 @@ const GifPlayer: React.FC = () => {
         const adjustedDelay = Math.round(frame.delay / playbackSpeed);
         
         // 添加到GIF
-        gif.addFrame(renderCanvas, { 
-          delay: adjustedDelay,
-          copy: true,
-          dispose: disposalMethod
-        } as any);
+        try {
+          gif.addFrame(renderCanvas, { 
+            delay: adjustedDelay,
+            copy: true,
+            dispose: disposalMethod
+          } as any);
+        } catch (e: any) {
+          logger.error(`Error adding frame ${i} to GIF: ${e.message}`, e);
+        }
         
         // 每帧更新进度
         setCurrentProgress(totalFrames - processedFrames.length + i + 1);
@@ -578,24 +666,25 @@ const GifPlayer: React.FC = () => {
     // 生成最终GIF
     return new Promise<void>((resolve, reject) => {
       gif.on('finished', (blob: Blob) => {
-        console.log('GIF generation completed!');
         const url = URL.createObjectURL(blob);
         setInterpolatedGif(url);
         setCurrentGif(null); // 清除临时预览
         setIsProcessing(false);
+        logger.info(`GIF generation completed! Size: ${(blob.size / 1024).toFixed(2)}KB, Frames: ${processedFrames.length}`);
         resolve();
       });
       
       (gif as any).on('progress', (p: number) => {
-        console.log(`GIF generation progress: ${Math.round(p * 100)}%`);
+        const percent = Math.round(p * 100);
+        logger.debug(`GIF generation progress: ${percent}%`);
       });
       
       (gif as any).on('error', (error: any) => {
-        console.error('GIF generation error:', error);
+        logger.error(`GIF generation error: ${error}`, error);
         reject(error);
       });
       
-      console.log('Starting final GIF render...');
+      logger.info('Starting final GIF render...');
       gif.render();
     });
   };
@@ -605,14 +694,17 @@ const GifPlayer: React.FC = () => {
     
     if (newAlgorithm === 'opticalflow') {
       alert('Optical flow algorithm is computationally intensive and may cause browser lag or crashes when processing large GIFs. We recommend testing on small GIFs first.');
+      logger.warning('User selected optical flow algorithm, which may be resource-intensive');
     }
     
+    logger.info(`Interpolation algorithm changed to: ${newAlgorithm}`);
     setAlgorithm(newAlgorithm);
   };
   
   const handleFrameCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const count = parseInt(e.target.value);
     if (!isNaN(count) && count >= 1 && count <= 10) {
+      logger.info(`Frame count changed to: ${count}`);
       setFrameCount(count);
     }
   };
@@ -620,18 +712,21 @@ const GifPlayer: React.FC = () => {
   // 添加播放配置处理函数
   const handleLoopCountChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const count = parseInt(e.target.value);
+    logger.info(`Loop count changed to: ${count}`);
     setLoopCount(count); // 使用数字，在createFinalGif中处理类型转换
   };
   
   const handlePlaybackSpeedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const speed = parseFloat(e.target.value);
     if (!isNaN(speed) && speed >= 0.25 && speed <= 2) {
+      logger.info(`Playback speed changed to: ${speed}x`);
       setPlaybackSpeed(speed);
     }
   };
   
   const handleDisposalMethodChange = (e: SelectChangeEvent<number>) => {
     const method = e.target.value as number;
+    logger.info(`Disposal method changed to: ${method}`);
     setDisposalMethod(method);
   };
   
@@ -643,9 +738,11 @@ const GifPlayer: React.FC = () => {
         setIsProcessing(false);
         setCurrentGif(null);
         setProcessingStage('Canceling...');
+        logger.info('User cancelled GIF processing');
       },
       () => {
         // 不做任何事情，继续处理
+        logger.debug('User chose to continue processing');
       }
     );
   };

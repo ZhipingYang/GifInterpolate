@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   CssBaseline, 
   Container, 
@@ -8,12 +8,16 @@ import {
   Box,
   Paper,
   ThemeProvider,
-  createTheme
+  createTheme,
+  IconButton,
+  Tooltip
 } from '@mui/material';
 import { 
-  AutoFixHigh as AutoFixHighIcon 
+  AutoFixHigh as AutoFixHighIcon,
+  Terminal as TerminalIcon
 } from '@mui/icons-material';
 import GifPlayer from './components/GifPlayer';
+import LogViewer from './components/LogViewer';
 
 // Create a custom theme
 const theme = createTheme({
@@ -46,6 +50,12 @@ const theme = createTheme({
 });
 
 function App() {
+  const [logViewerOpen, setLogViewerOpen] = useState(false);
+
+  const toggleLogViewer = () => {
+    setLogViewerOpen(!logViewerOpen);
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -70,14 +80,46 @@ function App() {
             px: 2, 
             mt: 'auto',
             backgroundColor: (theme) => theme.palette.grey[100],
-            textAlign: 'center'
+            textAlign: 'center',
+            position: 'relative'
           }}
         >
           <Typography variant="body2" color="text.secondary">
             GIF Frame Interpolator • Built with React and Material UI
           </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+            Last deployed: {process.env.REACT_APP_DEPLOY_TIMESTAMP || new Date().toLocaleString()}
+          </Typography>
+          <Box 
+            sx={{ 
+              position: 'absolute', 
+              right: '16px', 
+              bottom: '16px',
+              opacity: 0.7,
+              '&:hover': {
+                opacity: 1
+              }
+            }}
+          >
+            <Tooltip title="View Logs">
+              <IconButton 
+                size="small" 
+                onClick={toggleLogViewer}
+                sx={{ 
+                  backgroundColor: 'rgba(0,0,0,0.05)',
+                  '&:hover': {
+                    backgroundColor: 'rgba(0,0,0,0.1)'
+                  }
+                }}
+              >
+                <TerminalIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
         </Box>
       </Box>
+      
+      <LogViewer open={logViewerOpen} onClose={() => setLogViewerOpen(false)} />
     </ThemeProvider>
   );
 }
