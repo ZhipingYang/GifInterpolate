@@ -20,7 +20,7 @@
 
 ## 在线演示
 
-访问 [https://yourusername.github.io/GifInterpolate](https://yourusername.github.io/GifInterpolate) 体验在线版本。
+访问 [Gif Interpolate](https://Zhipingyang.github.io/GifInterpolate) 体验在线版本。
 
 ## 安装与运行
 
@@ -63,6 +63,12 @@ yarn
 ### 运行开发服务器
 
 ```bash
+# 本地运行（推荐）
+npm run start:local
+# 或
+yarn start:local
+
+# 标准启动
 npm start
 # 或
 yarn start
@@ -75,26 +81,20 @@ yarn start
 ### 安装 gh-pages 包
 
 ```bash
-npm install --save-dev gh-pages
+npm install --save-dev gh-pages cross-env
 # 或
-yarn add --dev gh-pages
+yarn add --dev gh-pages cross-env
 ```
 
-### 更新 package.json
+### package.json 配置说明
 
-将以下内容添加到您的 package.json 文件中：
+本项目已配置以下脚本用于不同场景：
 
-```json
-{
-  "homepage": "https://yourusername.github.io/GifInterpolate",
-  "scripts": {
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d build"
-  }
-}
-```
+- `start:local`: 使用空的 PUBLIC_URL 在本地开发（推荐）
+- `start`: 标准启动脚本 
+- `deploy`: 自动构建并部署到 GitHub Pages
 
-确保将 `yourusername` 替换为您的 GitHub 用户名。
+注意：开发时使用 `homepage: "."`，部署时使用 `homepage: "https://ZhipingYang.github.io/GifInterpolate"`。
 
 ### 部署应用
 

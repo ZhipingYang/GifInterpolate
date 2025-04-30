@@ -2,7 +2,7 @@
   "name": "gif-player",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://yourusername.github.io/GifInterpolate",
+  "homepage": ".",
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
@@ -25,7 +25,8 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "node -e \"const fs=require('fs');const pkg=require('./package.json');const originalHomepage=pkg.homepage;pkg.homepage='.';fs.writeFileSync('package.json',JSON.stringify(pkg,null,2));\" && react-scripts start && node -e \"const fs=require('fs');const pkg=require('./package.json');pkg.homepage='https://ZhipingYang.github.io/GifInterpolate';fs.writeFileSync('package.json',JSON.stringify(pkg,null,2));\"",
+    "start:local": "cross-env PUBLIC_URL='' react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
@@ -51,6 +52,7 @@
     ]
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "gh-pages": "^6.3.0"
   }
 }
